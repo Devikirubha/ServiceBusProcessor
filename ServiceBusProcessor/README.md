@@ -1,129 +1,173 @@
 # Service Bus Processor API
 
-A **production-ready** .NET 8 Clean Architecture API that:
-1. Listens to an **Azure Service Bus queue** via a background processor
-2. Saves each message to **SQL Server** via EF Core
-3. Exposes a **versioned, JWT-secured REST API** to query those messages
+ **.NET 8 Web API** built using **Clean Architecture**.
+The system processes messages from Azure Service Bus and persists them into SQL Server, exposing secured REST APIs for querying data.
+
+---
+
+## Features
+
+* .NET 8 Web API
+* Clean Architecture 
+* Azure Service Bus background processor
+* Entity Framework Core (SQL Server)
+* JWT Authentication & Role-based Authorization
+* API Versioning (v1, v2)
+* Global Exception Handling
+* Health Checks
+* Serilog Structured Logging
+* Unit Testing
+* Docker Support
+
+---
+
+## Architecture
+
+```
+API (Presentation)
+   ↓
+Application Layer
+   ↓
+Domain Layer
+   ↓
+Infrastructure Layer
+   ↓
+SQL Server
+Azure Service Bus
+```
+
+---
 
 ## Getting Started
 
 ### Prerequisites
-- .NET 8 SDK
-- SQL Server (or Docker)
-- Azure Service Bus namespace + queue (or use Azure Service Bus Emulator)
 
-### Run locally
+* .NET 8 SDK
+* SQL Server (local or Docker)
+* Azure Service Bus namespace + queue
+
+---
+
+### Run Locally
 
 ```bash
-# 1. Clone and navigate
-cd ServiceBusProcessor
+# Restore dependencies
+dotnet restore
 
-# 2. Set user secrets (avoids committing secrets)
-cd src/API
-dotnet user-secrets set "JwtSettings:SecretKey" "your-local-secret-at-least-32-chars!"
-dotnet user-secrets set "AzureServiceBus:ConnectionString" "Endpoint=sb://..."
-dotnet user-secrets set "AzureServiceBus:QueueName" "messages-dev"
-dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=...;Database=...;"
+# Apply database migrations
+dotnet ef database update
 
-# 3. Apply EF Core migrations
-dotnet ef database update --project ../Infrastructure --startup-project .
-
-# 4. Run
+# Run application
 dotnet run
 ```
 
-### Run with Docker Compose
+---
 
-```bash
-# Copy and fill in your Service Bus connection string
-cp .env.example .env
+## Configuration
 
-docker-compose up --build
-```
+Update configuration in `appsettings.json` or use User Secrets:
 
-### Run tests
-
-```bash
-dotnet test tests/Tests/Tests.csproj --verbosity normal
+```json
+{
+  "ConnectionStrings": {
+    "DefaultConnection": ""
+  },
+  "AzureServiceBus": {
+    "ConnectionString": "",
+    "QueueName": ""
+  },
+  "JwtSettings": {
+    "Issuer": "",
+    "Audience": "",
+    "SecretKey": ""
+  }
+}
 ```
 
 ---
 
 ## API Endpoints
 
-### v1
+### Messages API
 
-| Method | Route | Policy | Description |
-|---|---|---|---|
-| `GET` | `/api/v1/messages` | `messages:read` | Paged list of messages |
-| `GET` | `/api/v1/messages/{id}` | `messages:read` | Single message by ID |
+| Method | Endpoint                | Description        |
+| ------ | ----------------------- | ------------------ |
+| GET    | `/api/v1/messages`      | Get paged messages |
+| GET    | `/api/v1/messages/{id}` | Get message by ID  |
 
-### v2 (enhanced envelope)
+### Enhanced API (v2)
 
-| Method | Route | Policy | Description |
-|---|---|---|---|
-| `GET` | `/api/v2/messages` | `messages:read` | Paged list wrapped in `Envelope<T>` |
-| `GET` | `/api/v2/messages/{id}` | `messages:read` | Single message in `Envelope<T>` |
-| `GET` | `/api/v2/messages/admin/summary` | `admin` | Admin summary (requires Admin role) |
-
-### Health
-
-| Route | Description |
-|---|---|
-| `GET /health` | SQL Server + Service Bus health |
+| Method | Endpoint                | Description               |
+| ------ | ----------------------- | ------------------------- |
+| GET    | `/api/v2/messages`      | Paged response (Envelope) |
+| GET    | `/api/v2/messages/{id}` | Single message (Envelope) |
 
 ---
 
-## JWT Token Requirements
+## Authentication
 
-Tokens must include:
-- `iss` — matches `JwtSettings:Issuer`
-- `aud` — matches `JwtSettings:Audience`
-- `scope` — `messages:read` and/or `messages:write`
-- `role` — `Admin` (for admin endpoints)
+JWT Bearer authentication is required.
+
+### Required Claims
+
+* `scope`: `messages:read`
+* `role`: `Admin` (for admin endpoints)
 
 ---
 
-## EF Core Migrations
+## Health Check
+
+| Endpoint  | Description                                  |
+| --------- | -------------------------------------------- |
+| `/health` | Checks SQL Server & Service Bus connectivity |
+
+---
+
+## Running Tests
 
 ```bash
-# Add a new migration
-dotnet ef migrations add <MigrationName> \
-  --project src/Infrastructure \
-  --startup-project src/API
-
-# Apply to database
-dotnet ef database update \
-  --project src/Infrastructure \
-  --startup-project src/API
+dotnet test
 ```
 
 ---
 
-## Environment Configuration
+## Design Decisions
 
-| Environment | File | Secret handling |
-|---|---|---|
-| Development | `appsettings.Development.json` | `dotnet user-secrets` |
-| TST | `appsettings.TST.json` | Token placeholders `#{...}#` replaced by CI/CD |
-| UAT | `appsettings.UAT.json` | Token placeholders replaced by CI/CD |
-| Production | `appsettings.Production.json` | Token placeholders replaced by CI/CD |
+### Clean Architecture
+
+Used to enforce separation of concerns, improve testability, and support long-term maintainability.
+
+### Service Bus Processing
+
+A background hosted service listens to Azure Service Bus messages and persists them into SQL Server asynchronously.
+
+### API Versioning
+
+Implemented to ensure backward compatibility while allowing system evolution.
+
+### Error Handling
+
+Centralized global exception handling with consistent API responses.
+
+### Logging
+
+Structured logging implemented using Serilog for observability and troubleshooting.
 
 ---
 
-## Serilog Logs table
+## Production Considerations
 
-This project uses `Serilog.Sinks.MSSqlServer` to optionally write structured logs to a SQL Server table named `Logs`.
+* Use Azure Key Vault for secrets management
+* Enable HTTPS and strict CORS policies
+* Add rate limiting for API protection
+* Use managed identity for Azure resources
+* Apply database migrations via CI/CD pipeline
+* Enable health checks in orchestration layer (Kubernetes / App Service)
 
-A SQL script is provided at `scripts/create_serilog_logs.sql` to create the table. Run it as a DBA or in your deployment pipeline before enabling the MSSqlServer sink in production (`autoCreateSqlTable: false` recommended).
+---
 
-Run the script using `sqlcmd` or SSMS:
+## Future Enhancements
 
-```powershell
-# LocalDB / SQL Server (example)
-sqlcmd -S "(localdb)\MSSQLLocalDB" -d ServiceBusProcessorDev -i scripts/create_serilog_logs.sql
-
-# Azure SQL
-sqlcmd -S "tcp:<your-server>.database.windows.net,1433" -U "<user>@<your-server>" -P "<password>" -d "<database>" -i scripts/create_serilog_logs.sql
-```
-
+* OpenTelemetry tracing
+* Distributed caching (Redis)
+* CI/CD pipeline (GitHub Actions / Azure DevOps)

@@ -28,26 +28,22 @@ builder.Services.AddDefaultCorrelationId(options =>
     options.UpdateTraceIdentifier = true;
 });
 
-#region Middleware
 
 builder.Services.AddJwtAuthentication(builder.Configuration);
 builder.Services.AddScopeAuthorization();
-
 builder.Services.AddApiVersioningConfiguration();
-
 builder.Services.AddSwaggerDocumentation();
-
 builder.Services.AddHealthChecksConfiguration(builder.Configuration);
-
 builder.Services.AddControllers();
-
-#endregion
-
 var app = builder.Build();
+
+#region Middleware
 
 app.UseCorrelationId();
 app.UseSerilogRequestLogging();
 app.UseMiddleware<GlobalExceptionMiddleware>();
+
+#endregion
 
 if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("TST"))
 {
