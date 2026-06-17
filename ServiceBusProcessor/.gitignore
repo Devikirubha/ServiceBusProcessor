@@ -1,0 +1,50 @@
+## .NET
+# Ignore build output directories (project-level and nested)
+bin/
+obj/
+**/bin/
+**/obj/
+*.user
+*.suo
+.vs/
+*.userprefs
+
+## Logs
+logs/
+*.log
+
+## Environment secrets (NEVER commit these)
+appsettings.*.local.json
+secrets.json
+.env
+.env.*
+
+## Publish output
+publish/
+out/
+
+## Coverage
+coverage/
+TestResults/
+*.coverage
+*.coveragexml
+
+## Docker
+.dockerignore
+
+## OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.vs/
+
+# GitHub Copilot / chat artifacts
+# Extension may create chat session artifacts; ignore common names
+GitHub.copilot-chat/
+**/GitHub.copilot-chat/
+chat-session-resources/
+**/chat-session-resources/
+*.copilot-chat
+.copilot/

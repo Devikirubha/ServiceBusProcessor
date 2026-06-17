@@ -1,0 +1,50 @@
+version: '3.9'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: servicebus-processor-api
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=ServiceBusProcessorDev;User Id=sa;Password=Dev@Password123!;TrustServerCertificate=True
+      - AzureServiceBus__ConnectionString=${SERVICEBUS_CONNECTION_STRING}
+      - AzureServiceBus__QueueName=messages-dev
+      - JwtSettings__SecretKey=dev-super-secret-key-at-least-32-chars!
+      - JwtSettings__Issuer=ServiceBusProcessor-Dev
+      - JwtSettings__Audience=ServiceBusProcessor-Clients-Dev
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    networks:
+      - sbp-network
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: servicebus-processor-sql
+    ports:
+      - "1433:1433"
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=Dev@Password123!
+      - MSSQL_PID=Developer
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P Dev@Password123! -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      retries: 10
+      start_period: 30s
+      timeout: 5s
+    networks:
+      - sbp-network
+
+volumes:
+  sqlserver-data:
+
+networks:
+  sbp-network:
+    driver: bridge
