@@ -1,42 +1,67 @@
 # Service Bus Processor API
 
- **.NET 8 Web API** built using **Clean Architecture**.
-The system processes messages from Azure Service Bus and persists them into SQL Server, exposing secured REST APIs for querying data.
+A scalable message-processing service that demonstrates event-driven integration patterns, secure API design, and production-ready engineering practices using Azure Service Bus, SQL Server, and .NET 8.
 
 ---
+## Technology Stack
+
+- .NET 8
+- ASP.NET Core Web API
+- Azure Service Bus
+- SQL Server
+- Entity Framework Core
+- Serilog
+- JWT Authentication
+- Docker
+- Azure Key Vault
 
 ## Features
 
-* .NET 8 Web API
-* Clean Architecture 
-* Azure Service Bus background processor
-* Entity Framework Core (SQL Server)
-* JWT Authentication & Role-based Authorization
-* API Versioning (v1, v2)
-* Global Exception Handling
-* Health Checks
-* Serilog Structured Logging
-* Unit Testing
-* Docker Support
+* Asynchronous message processing using Azure Service Bus
+* Secure REST APIs with JWT authentication and authorization
+* API versioning to support backward compatibility
+* Structured logging with Serilog and Correlation IDs
+* Centralized exception handling and consistent API responses
+* SQL Server persistence using Entity Framework Core
+* Health monitoring for infrastructure dependencies
+* Unit and integration testing
+* Docker-ready deployment
 
 ---
 
 ## Architecture
 
 ```
-API (Presentation)
-   ↓
-Application Layer
-   ↓
-Domain Layer
-   ↓
-Infrastructure Layer
-   ↓
-SQL Server
 Azure Service Bus
-```
+        │
+        ▼
+Background Processor
+        │
+        ▼
+Application Layer
+        │
+        ▼
+SQL Server
 
+        ▲
+        │
+
+Versioned REST APIs
+(JWT Protected)
+```
 ---
+## Solution Structure
+
+src/
+├── API             # Controllers, middleware, configuration
+├── Application     # Use cases, DTOs, interfaces
+├── Domain          # Entities and business rules
+├── Infrastructure  # EF Core, Service Bus, external services
+
+tests/
+├── UnitTests
+├── IntegrationTests
+
 
 ## Getting Started
 
@@ -65,7 +90,7 @@ dotnet run
 
 ## Configuration
 
-Update configuration in `appsettings.json` or use User Secrets:
+The application supports configuration through appsettings files, environment variables, .NET User Secrets or Azure Key Vault.
 
 ```json
 {
@@ -85,22 +110,56 @@ Update configuration in `appsettings.json` or use User Secrets:
 ```
 
 ---
+## Azure Key Vault (Optional)
+
+Sensitive values such as database connection strings, Service Bus credentials, and JWT secrets are intentionally excluded from source control.
+
+The application can load secrets from:
+
+* Azure Key Vault
+* Environment Variables
+* .NET User Secrets (Development)
+* CI/CD Pipeline Variables
+
+### Example
+
+```bash
+az keyvault secret set \
+  --vault-name MyVault \
+  --name ConnectionStrings--DefaultConnection \
+  --value "Server=...;Database=...;"
+```
+
+```bash
+az keyvault secret set \
+  --vault-name MyVault \
+  --name AzureServiceBus--ConnectionString \
+  --value "Endpoint=sb://..."
+```
+
+Configure the application by setting:
+
+```bash
+KEYVAULT_URI=https://MyVault.vault.azure.net/
+```
+
+When `KEYVAULT_URI` is configured, the application automatically loads secrets using `DefaultAzureCredential`.
 
 ## API Endpoints
 
 ### Messages API
 
-| Method | Endpoint                | Description        |
-| ------ | ----------------------- | ------------------ |
-| GET    | `/api/v1/messages`      | Get paged messages |
-| GET    | `/api/v1/messages/{id}` | Get message by ID  |
+| Method | Endpoint | Description |
+|---------|---------|---------|
+| GET | /api/v1/messages | Get paged messages |
+| GET | /api/v1/messages/{id} | Get message by ID |
 
 ### Enhanced API (v2)
 
-| Method | Endpoint                | Description               |
-| ------ | ----------------------- | ------------------------- |
-| GET    | `/api/v2/messages`      | Paged response (Envelope) |
-| GET    | `/api/v2/messages/{id}` | Single message (Envelope) |
+| Method | Endpoint | Description |
+|---------|---------|---------|
+| GET | /api/v2/messages | Get paged messages wrapped in Envelope<T> |
+| GET | /api/v2/messages/{id} | Get message by ID wrapped in Envelope<T> |
 
 ---
 
@@ -133,9 +192,9 @@ dotnet test
 
 ## Design Decisions
 
-### Clean Architecture
+### Separation of Concerns
 
-Used to enforce separation of concerns, improve testability, and support long-term maintainability.
+The solution is organized into distinct layers to isolate business logic, infrastructure concerns, and API responsibilities, improving maintainability and testability.
 
 ### Service Bus Processing
 

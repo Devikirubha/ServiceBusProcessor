@@ -5,8 +5,22 @@ using Application;
 using Serilog;
 using CorrelationId;
 using CorrelationId.DependencyInjection;
+using Azure.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
+
+#region Configuration
+// Optional Azure Key Vault integration
+var keyVaultUri = builder.Configuration["KeyVault:VaultUri"] ?? Environment.GetEnvironmentVariable("KEYVAULT_URI");
+if (!string.IsNullOrWhiteSpace(keyVaultUri))
+{
+    builder.Configuration.AddAzureKeyVault(
+        new Uri(keyVaultUri),
+        new DefaultAzureCredential());
+}
+#endregion
+
+#region Logging
 
 builder.Host.UseSerilog((ctx, lc) => lc
     .ReadFrom.Configuration(ctx.Configuration)
@@ -14,6 +28,9 @@ builder.Host.UseSerilog((ctx, lc) => lc
     .Enrich.WithMachineName()
     .Enrich.WithThreadId());
 
+#endregion
+
+#region Dependency Injection
 // ── Layers ─────────
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -35,6 +52,9 @@ builder.Services.AddApiVersioningConfiguration();
 builder.Services.AddSwaggerDocumentation();
 builder.Services.AddHealthChecksConfiguration(builder.Configuration);
 builder.Services.AddControllers();
+
+#endregion
+
 var app = builder.Build();
 
 #region Middleware
@@ -44,6 +64,8 @@ app.UseSerilogRequestLogging();
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
 #endregion
+
+#region HTTP Pipeline
 
 if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("TST"))
 {
@@ -62,6 +84,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
+
+#endregion
 
 await app.RunAsync();
 
